@@ -27,7 +27,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ./tarraform # Set default shell and working directory
+        working-directory: ./terraform # Set default shell and working directory
 
     steps:
       - name: Checkout code
