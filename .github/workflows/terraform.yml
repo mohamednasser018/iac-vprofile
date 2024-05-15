@@ -1,0 +1,62 @@
+name: "vprofile iac"
+
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: 
+        - main
+        - stage
+    path:
+        - terraform/**    
+  pull_request:
+    branches: [ "main" ]
+    path:
+        - terraform/**  
+ 
+env:
+    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    BUCKET_TF_STAT: ${{secrets.BUCKET_TF_STAT}}
+    AWS_REGION: us-east-1
+    EKS_CLUSTER: gitops-eks
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    defaults:
+        run:
+            shell: bash
+            working-directory: ./tarraform
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+  
+        - name: Install Terraform
+          uses: hashicorp/setup-terraform@v2
+        #   with:
+        #     terraform_version: "1.1.7" # Specify the desired Terraform version
+  
+        - name: Terraform Init
+          id: terraform_init
+          run: terraform init -backend-config="bucket=$BUCKET_TF_STAT"
+  
+        - name: Terraform Format
+          id: terraform_format
+          run: terraform fmt -check
+  
+        - name: Terraform Validate
+          id: terraform_validate
+          run: terraform validate
+  
+        - name: Terraform Plan
+          id: terraform_plan
+          run: terraform plan -out=tfplan -input=false -no-color
+          continue-on-error: true 
+        
+        - name: terraform plan status
+          if: steps.terraform_plan.outcome == 'failure'
+          run: exit 1
