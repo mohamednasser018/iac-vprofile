@@ -1,62 +1,58 @@
-name: "vprofile iac"
+name: "vprofile iac" # Workflow name
 
 on:
   # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
     branches: 
-        - main
-        - stage
-    path:
-        - terraform/**    
+      - main
+      - stage
+    paths:
+      - terraform/**    # Path filter for triggering on changes in the terraform directory
   pull_request:
     branches: [ "main" ]
-    path:
-        - terraform/**  
- 
+    paths:
+      - terraform/**    # Path filter for triggering on changes in the terraform directory
+  
 env:
-    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    BUCKET_TF_STAT: ${{secrets.BUCKET_TF_STAT}}
-    AWS_REGION: us-east-1
-    EKS_CLUSTER: gitops-eks
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-    defaults:
-        run:
-            shell: bash
-            working-directory: ./tarraform
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }} # AWS access key
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # AWS secret access key
+  BUCKET_TF_STAT: ${{ secrets.BUCKET_TF_STAT }} # S3 bucket for Terraform state
+  AWS_REGION: us-east-1 # AWS region
+  EKS_CLUSTER: gitops-eks # Name of the EKS cluster
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+jobs:
+  build:
+    runs-on: ubuntu-latest # The type of runner that the job will run on
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./tarraform # Set default shell and working directory
+
     steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4 # Checkout code from the repository
   
-        - name: Install Terraform
-          uses: hashicorp/setup-terraform@v2
-        #   with:
-        #     terraform_version: "1.1.7" # Specify the desired Terraform version
-  
-        - name: Terraform Init
-          id: terraform_init
-          run: terraform init -backend-config="bucket=$BUCKET_TF_STAT"
-  
-        - name: Terraform Format
-          id: terraform_format
-          run: terraform fmt -check
-  
-        - name: Terraform Validate
-          id: terraform_validate
-          run: terraform validate
-  
-        - name: Terraform Plan
-          id: terraform_plan
-          run: terraform plan -out=tfplan -input=false -no-color
-          continue-on-error: true 
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2 # Install Terraform
         
-        - name: terraform plan status
-          if: steps.terraform_plan.outcome == 'failure'
-          run: exit 1
+      - name: Terraform Init
+        id: terraform_init
+        run: terraform init -backend-config="bucket=$BUCKET_TF_STAT" # Initialize Terraform with backend configuration
+        
+      - name: Terraform Format
+        id: terraform_format
+        run: terraform fmt -check # Check Terraform formatting
+        
+      - name: Terraform Validate
+        id: terraform_validate
+        run: terraform validate # Validate Terraform configuration files
+        
+      - name: Terraform Plan
+        id: terraform_plan
+        run: terraform plan -out=tfplan -input=false -no-color # Generate Terraform execution plan
+        continue-on-error: true # Continue execution even if errors occur
+        
+      - name: terraform plan status
+        if: steps.terraform_plan.outcome == 'failure' # Check if Terraform plan step failed
+        run: exit 1 # Exit with error code 1 if Terraform plan failed
