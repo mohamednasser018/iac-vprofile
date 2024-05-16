@@ -62,7 +62,7 @@ jobs:
       - name: Terraform Apply (on main branch)
         id: apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve -parallelism=1 planfile
+        run: terraform apply -auto-approve -parallelism=1 tfplan
 
       - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
