@@ -1,7 +1,6 @@
 name: "vprofile iac" # Workflow name
 
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
     branches: 
       - main
@@ -55,14 +54,14 @@ jobs:
         run: terraform plan -out=tfplan -input=false -no-color # Generate Terraform execution plan
         continue-on-error: true # Continue execution even if errors occur
         
-      - name: terraform plan status
+      - name: Terraform plan status
         if: steps.terraform_plan.outcome == 'failure' # Check if Terraform plan step failed
         run: exit 1 # Exit with error code 1 if Terraform plan failed
       
-      - name: Terraform Apply (on main branch)
-        id: apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve -parallelism=1 tfplan
+      # - name: Terraform Apply (on main branch)
+      #   id: apply
+      #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      #   run: terraform apply -auto-approve -parallelism=1 tfplan
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -73,13 +72,17 @@ jobs:
 
       - name: Get kube config file
         id: getconfig
-        if: steps.apple.outcome == 'success'
-        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name=gitops-eks
+        if: steps.apply.outcome == 'success'
+        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER }}
+
+      - name: Debug kubeconfig
+        if: steps.getconfig.outcome == 'failure'
+        run: cat ~/.kube/config
 
       - name: Install Ingress controller
-        if: steps.apple.outcome == 'success' && steps.getconfig.outcome == 'success'
-        run: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.3/deploy/static/provider/aws/deploy.yaml    
-     
-      # - name: destroy
-      #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      #   run: terraform destroy -auto-approve      
+        if: steps.apply.outcome == 'success' && steps.getconfig.outcome == 'success'
+        run: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.3/deploy/static/provider/aws/deploy.yaml
+
+      - name: destroy
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform destroy -auto-approve      
